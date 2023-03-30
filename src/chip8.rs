@@ -73,6 +73,26 @@ impl Chip8 {
         Ok(())
     }
 
+    pub fn draw_flag(&self) -> bool {
+        false
+    }
+
+    pub fn draw_graphics(&self) {
+        print!("\x1b[2;1H");
+        print!("\x1b[0J");
+        for _i in 0..GFX_SIZE_ROW {
+            for _j in 0..GFX_SIZE_COL {
+                let idx = _i * GFX_SIZE_ROW + _j;
+                if self.gfx[idx] == 1 {
+                    print!("*");
+                } else {
+                    print!(" ");
+                }
+            }
+            println!();
+        }
+    }
+
     pub fn dump(&self) {
         println!("memory:");
         let begin = 0x100;
@@ -127,4 +147,8 @@ impl Chip8 {
         print!(", sound_timer: {}", self.sound_timer);
         println!();
     }
+}
+
+pub fn setup_graphics() {
+    print!("\x1b[2J");
 }
