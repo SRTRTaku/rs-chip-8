@@ -1,3 +1,9 @@
+use std::error::Error;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::Read;
+use std::iter::Iterator;
+
 const MEMORY_SIZE: usize = 4096;
 const V_SIZE: usize = 16;
 const GFX_SIZE_COL: usize = 64;
@@ -57,9 +63,20 @@ impl Chip8 {
             key: [0; KEY_NUM],
         }
     }
+
+    pub fn load_game(&mut self, filename: &str) -> Result<(), Box<dyn Error>> {
+        let buf = BufReader::new(File::open(filename)?);
+        for (i, byte_or_error) in buf.bytes().enumerate() {
+            let byte = byte_or_error.unwrap();
+            self.memory[0x200 + i] = byte;
+        }
+        Ok(())
+    }
+
     pub fn dump(&self) {
         println!("memory:");
-        let omit = 0x200;
+        let begin = 0x100;
+        let end = 0x400;
         // print header
         print!("    |");
         for i in 0..16 {
@@ -67,7 +84,7 @@ impl Chip8 {
         }
         println!();
 
-        for row in 0..(MEMORY_SIZE / 16) {
+        for row in (begin / 16)..(MEMORY_SIZE / 16) {
             let offset = row * 16;
             print!("{:03x} |", offset);
             for i in 0..16 {
@@ -76,8 +93,7 @@ impl Chip8 {
             println!();
 
             // omit
-            if offset > omit {
-                println!("...");
+            if offset > end {
                 break;
             }
         }

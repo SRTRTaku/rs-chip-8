@@ -9,8 +9,11 @@ fn main() {
     // setupInput
 
     // Initialize the Chip8 system and load the game into the memory
-    let my_chip8 = Chip8::new();
-    // my_chip8.load_game("pong");
+    let mut my_chip8 = Chip8::new();
+    if let Err(e) = my_chip8.load_game("PONG") {
+        println!("erro {}", e);
+        return;
+    }
     my_chip8.dump();
 
     loop {
