@@ -42,6 +42,7 @@ pub struct Chip8 {
     stack: [u16; STACK_SIZE],
     sp: u16,
     key: [u8; KEY_NUM],
+    draw_flag: bool,
 }
 
 impl Chip8 {
@@ -61,6 +62,7 @@ impl Chip8 {
             stack: [0; STACK_SIZE],
             sp: 0, // Rese stack posinter
             key: [0; KEY_NUM],
+            draw_flag: false,
         }
     }
 
@@ -73,8 +75,200 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn draw_flag(&self) -> bool {
-        false
+    pub fn emulate_cycle(&mut self) {
+        // Fetch Opcode
+        let opcode: u16 = {
+            let m0 = self.memory[self.pc as usize] as u16;
+            let m1 = self.memory[self.pc as usize + 1] as u16;
+            m0 << 8 | m1
+        };
+
+        // Decode Opcode
+        // Execute Opcode
+        if let Err(e) = self.decode_execute(opcode) {
+            self.dump();
+            panic!("decode_execute: {}", e);
+        }
+
+        // Update timers
+        if self.delay_timer > 0 {
+            self.delay_timer -= 1;
+        }
+        if self.sound_timer > 0 {
+            if self.sound_timer == 1 {
+                println!("BEEP!");
+            }
+            self.sound_timer -= 1;
+        }
+    }
+    fn decode_execute(&mut self, opcode: u16) -> Result<(), String> {
+        match opcode & 0xF000 {
+            0x0000 => match opcode {
+                0x00E0 => {
+                    // 0x00E0: Clears the screen
+                    self.gfx = [0; GFX_SIZE];
+                    self.draw_flag = true;
+                    self.pc += 2;
+                }
+                0x00EE => {
+                    // 0x00EE: Returns from a subroutine
+                    // pop
+                    self.sp -= 1;
+                    let pc = self.stack[self.sp as usize];
+                    // update
+                    self.pc = pc
+                }
+                _ => {
+                    return Err(format!("unknown opcode(0x0000): 0x{:x}", opcode));
+                }
+            },
+            0x1000 => {
+                // 0x1NNN: Jumps to address NNN
+                let nnn = opcode & 0x0FFF;
+                self.pc = nnn;
+            }
+            0x2000 => {
+                // 0x2NNN: Calls  subroutine at NNN
+                // push
+                self.stack[self.sp as usize] = self.pc;
+                self.sp += 1;
+                // update
+                let nnn = opcode & 0x0FFF;
+                self.pc = nnn;
+            }
+            0x3000 => {
+                // 0x3XNN: Skips the next instrunction if VX == NN
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                if self.v[x] == nn {
+                    self.pc += 4; // skip
+                } else {
+                    self.pc += 2;
+                }
+            }
+            0x4000 => {
+                // 0x4XNN: Skips the next instrunction if VX != NN
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                if self.v[x] != nn {
+                    self.pc += 4; // skip
+                } else {
+                    self.pc += 2;
+                }
+            }
+            0x5000 => {
+                // 0x5XY0: Skips the next instrunction if VX == VY
+                if opcode & 0x000F != 0x0000 {
+                    return Err(format!("unknown opcode(0x5000): 0x{:x}", opcode));
+                }
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let y = ((opcode & 0x00F0) >> 4) as usize;
+                if self.v[x] == self.v[y] {
+                    self.pc += 4; // skip
+                } else {
+                    self.pc += 2;
+                }
+            }
+            0x6000 => {
+                // 0x6XNN: Sets VX to NN
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                self.v[x] = nn;
+                self.pc += 2;
+            }
+            0x7000 => {
+                // 0x7XNN: Adds NN to VX
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                self.v[x] += nn;
+                self.pc += 2;
+            }
+            0x8000 => {
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let y = ((opcode & 0x00F0) >> 4) as usize;
+                match opcode & 0x000F {
+                    0x0000 => {
+                        // 0x8XY0: Sets VX to the value of VY
+                        self.v[x] = self.v[y];
+                    }
+                    0x0001 => {
+                        // 0x8XY1: Sets VX to VX or VY
+                        self.v[x] |= self.v[y];
+                    }
+                    0x0002 => {
+                        // 0x8XY2: Sets VX to VX and VY
+                        self.v[x] &= self.v[y];
+                    }
+                    0x0003 => {
+                        // 0x8XY3: Sets VX to VX xor VY
+                        self.v[x] ^= self.v[y];
+                    }
+                    0x0004 => {
+                        // 0x8XY4: Add VY to VX with carry
+                        self.v[0xf] = if self.v[x] > 0xFF - self.v[y] { 1 } else { 0 };
+                        self.v[x] += self.v[y];
+                    }
+                    0x0005 => {
+                        // 0x8XY5: VY is subtracted from VX with carry
+                        self.v[0xf] = if self.v[x] < self.v[y] { 1 } else { 0 };
+                        self.v[x] -= self.v[y];
+                    }
+                    0x0006 => {
+                        // 0x8XY6: Stores the least significant bit of VX in VF and VX >>= 1
+                        self.v[0xf] = self.v[x] & 0x01;
+                        self.v[x] >>= 1;
+                    }
+                    0x0007 => {
+                        // 0x8XY7: Sets VX to VY minus VX with carry
+                        self.v[0xf] = if self.v[y] < self.v[x] { 1 } else { 0 };
+                        self.v[x] = self.v[y] - self.v[x];
+                    }
+                    0x000E => {
+                        // 0x8XYE: Stores the most significant bit of VX in VF and VX <<= 1
+                        self.v[0xf] = (self.v[x] & 0x80) >> 7;
+                        self.v[x] <<= 1;
+                    }
+                    _ => {
+                        return Err(format!("unknown opcode(0x8000): 0x{:x}", opcode));
+                    }
+                };
+                self.pc += 2;
+            }
+            0x9000 => {
+                todo!()
+            }
+            0xA000 => {
+                // ANNN: Set I to the address NNN
+                let nnn = opcode & 0x0FFF;
+                self.i = nnn;
+                self.pc += 2;
+            }
+            0xB000 => {
+                todo!()
+            }
+            0xC000 => {
+                todo!()
+            }
+            0xD000 => {
+                todo!()
+            }
+            0xE000 => {
+                todo!()
+            }
+            0xF000 => {
+                todo!()
+            }
+            _ => {
+                return Err(format!("unknown opcode: 0x{:x}", opcode));
+            }
+        };
+        Ok(())
+    }
+
+    pub fn draw_flag(&mut self) -> bool {
+        let f = self.draw_flag;
+        self.draw_flag = false;
+        f
     }
 
     pub fn draw_graphics(&self) {
