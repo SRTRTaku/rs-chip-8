@@ -25,7 +25,6 @@ const CHIP8_FONTSET: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
 
-#[derive(Debug)]
 pub struct Chip8 {
     memory: [u8; MEMORY_SIZE],
     v: [u8; V_SIZE],
@@ -57,5 +56,59 @@ impl Chip8 {
             sp: 0, // Rese stack posinter
             key: [0; KEY_NUM],
         }
+    }
+    pub fn dump(&self) {
+        println!("memory:");
+        let omit = 0x200;
+        // print header
+        print!("    |");
+        for i in 0..16 {
+            print!("{:3x}", i);
+        }
+        println!();
+
+        for row in 0..(MEMORY_SIZE / 16) {
+            let offset = row * 16;
+            print!("{:03x} |", offset);
+            for i in 0..16 {
+                print!(" {:02x}", self.memory[offset + i]);
+            }
+            println!();
+
+            // omit
+            if offset > omit {
+                println!("...");
+                break;
+            }
+        }
+
+        println!("registers:");
+        for i in 0..V_SIZE {
+            print!("[{:2}] ", i);
+        }
+        println!();
+        for i in 0..V_SIZE {
+            print!("{:4} ", self.v[i]);
+        }
+        println!();
+
+        println!("stack:");
+        println!(" sp: {}", self.sp);
+        for i in 0..STACK_SIZE {
+            print!("[{:2}]  ", i);
+        }
+        println!();
+        for i in 0..STACK_SIZE {
+            print!("0x{:03x} ", self.stack[i]);
+        }
+        println!();
+
+        // others
+        println!("others:");
+        print!("i: {}", self.i);
+        print!(", pc: {} (0x{:x})", self.pc, self.pc);
+        print!(", delay_timer: {}", self.delay_timer);
+        print!(", sound_timer: {}", self.sound_timer);
+        println!();
     }
 }

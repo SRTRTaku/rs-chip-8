@@ -11,8 +11,10 @@ fn main() {
     // Initialize the Chip8 system and load the game into the memory
     let my_chip8 = Chip8::new();
     // my_chip8.load_game("pong");
+    my_chip8.dump();
 
     loop {
+        return;
         // Emulate one cycle
         // my_chip8.emulate_cycle();
 
