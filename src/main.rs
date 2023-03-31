@@ -1,4 +1,4 @@
-use chip8::Chip8;
+use chip8::{Chip8, KeyBoard};
 
 mod chip8;
 
@@ -8,6 +8,7 @@ fn main() {
     // setupGraphics
     // setupInput
     chip8::setup_graphics();
+    let mut kb = KeyBoard::new();
 
     // Initialize the Chip8 system and load the game into the memory
     let mut my_chip8 = Chip8::new();
@@ -15,14 +16,14 @@ fn main() {
         println!("erro {}", e);
         return;
     }
-    my_chip8.dump();
+    // my_chip8.dump();
 
     let mut count = 0;
     loop {
         count += 1;
         // Emulate one cycle
-        my_chip8.emulate_cycle();
-        my_chip8.dump();
+        my_chip8.emulate_cycle(&kb);
+        // my_chip8.dump();
 
         // If the draw flag is set, update the screen
         if my_chip8.draw_flag() {
@@ -30,9 +31,11 @@ fn main() {
         }
 
         // Store kye press state (Press and Release)
-        // my_chip8.set_keys();
+        let fin_flag = kb.set_keys();
+        if fin_flag {
+            break;
+        }
 
-        break;
         print!("\x1b[1;1H");
         print!("\x1b[2K");
         println!("{}", count);

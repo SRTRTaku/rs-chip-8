@@ -1,3 +1,4 @@
+use getch_rs::{Getch, Key};
 use rand::Rng;
 use std::error::Error;
 use std::fs::File;
@@ -42,8 +43,12 @@ pub struct Chip8 {
     sound_timer: u8,
     stack: [u16; STACK_SIZE],
     sp: u16,
-    key: [u8; KEY_NUM],
     draw_flag: bool,
+}
+
+pub struct KeyBoard {
+    g: Getch,
+    key: [u8; KEY_NUM],
 }
 
 impl Chip8 {
@@ -62,7 +67,6 @@ impl Chip8 {
             sound_timer: 0,
             stack: [0; STACK_SIZE],
             sp: 0, // Rese stack posinter
-            key: [0; KEY_NUM],
             draw_flag: false,
         }
     }
@@ -76,7 +80,7 @@ impl Chip8 {
         Ok(())
     }
 
-    pub fn emulate_cycle(&mut self) {
+    pub fn emulate_cycle(&mut self, kb: &KeyBoard) {
         // Fetch Opcode
         let opcode: u16 = {
             let m0 = self.memory[self.pc as usize] as u16;
@@ -86,7 +90,7 @@ impl Chip8 {
 
         // Decode Opcode
         // Execute Opcode
-        if let Err(e) = self.decode_execute(opcode) {
+        if let Err(e) = self.decode_execute(opcode, kb) {
             self.dump();
             panic!("decode_execute: {}", e);
         }
@@ -102,7 +106,7 @@ impl Chip8 {
             self.sound_timer -= 1;
         }
     }
-    fn decode_execute(&mut self, opcode: u16) -> Result<(), String> {
+    fn decode_execute(&mut self, opcode: u16, kb: &KeyBoard) -> Result<(), String> {
         match opcode & 0xF000 {
             0x0000 => match opcode {
                 0x00E0 => {
@@ -299,7 +303,30 @@ impl Chip8 {
                 self.pc += 2;
             }
             0xE000 => {
-                todo!()
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                match opcode & 0x00FF {
+                    0x009E => {
+                        // 0xEX9E: Skips the next instruction
+                        // if the key stored in VX is pressed
+                        if kb.key[self.v[x] as usize] != 0 {
+                            self.pc += 4; // skip
+                        } else {
+                            self.pc += 2;
+                        }
+                    }
+                    0x00A1 => {
+                        // 0xEXA1: Skips the next instruction
+                        // if the key stored in VX is not pressed
+                        if kb.key[self.v[x] as usize] == 0 {
+                            self.pc += 4; // skip
+                        } else {
+                            self.pc += 2;
+                        }
+                    }
+                    _ => {
+                        return Err(format!("unknown opcode(0x9000): 0x{:x}", opcode));
+                    }
+                }
             }
             0xF000 => {
                 todo!()
@@ -324,9 +351,11 @@ impl Chip8 {
             for _j in 0..GFX_SIZE_COL {
                 let idx = _i * GFX_SIZE_ROW + _j;
                 if self.gfx[idx] == 1 {
+                    print!("\x1b[42m"); // green
                     print!("*");
+                    print!("\x1b[0m"); // reset
                 } else {
-                    print!(" ");
+                    print!(".");
                 }
             }
             println!();
@@ -389,6 +418,47 @@ impl Chip8 {
     }
 }
 
+impl KeyBoard {
+    pub fn new() -> KeyBoard {
+        KeyBoard {
+            g: Getch::new(),
+            key: [0; KEY_NUM],
+        }
+    }
+    pub fn set_keys(&mut self) -> bool {
+        self.key = [0; KEY_NUM];
+        let mut fin_flag = false;
+        match self.g.getch() {
+            Ok(Key::Char('x')) => self.key[0x0] = 1,
+            Ok(Key::Char('1')) => self.key[0x1] = 1,
+            Ok(Key::Char('2')) => self.key[0x2] = 1,
+            Ok(Key::Char('3')) => self.key[0x3] = 1,
+            Ok(Key::Char('q')) => self.key[0x4] = 1,
+            Ok(Key::Char('w')) => self.key[0x5] = 1,
+            Ok(Key::Char('e')) => self.key[0x6] = 1,
+            Ok(Key::Char('a')) => self.key[0x7] = 1,
+            Ok(Key::Char('s')) => self.key[0x8] = 1,
+            Ok(Key::Char('d')) => self.key[0x9] = 1,
+            Ok(Key::Char('z')) => self.key[0xa] = 1,
+            Ok(Key::Char('c')) => self.key[0xb] = 1,
+            Ok(Key::Char('4')) => self.key[0xc] = 1,
+            Ok(Key::Char('r')) => self.key[0xd] = 1,
+            Ok(Key::Char('f')) => self.key[0xe] = 1,
+            Ok(Key::Char('v')) => self.key[0xf] = 1,
+            Ok(Key::Char(' ')) => (),
+            _ => fin_flag = true,
+        }
+        fin_flag
+    }
+}
+
 pub fn setup_graphics() {
     print!("\x1b[2J");
+    print!("\x1b[2;1H");
+    for _i in 0..GFX_SIZE_ROW {
+        for _j in 0..GFX_SIZE_COL {
+            print!(".");
+        }
+        println!();
+    }
 }
