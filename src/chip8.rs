@@ -1,3 +1,4 @@
+use rand::Rng;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
@@ -235,22 +236,67 @@ impl Chip8 {
                 self.pc += 2;
             }
             0x9000 => {
-                todo!()
+                // 0x9XY0: Skips the next instrunction if VX != VY
+                if opcode & 0x000F != 0x0000 {
+                    return Err(format!("unknown opcode(0x9000): 0x{:x}", opcode));
+                }
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let y = ((opcode & 0x00F0) >> 4) as usize;
+                if self.v[x] != self.v[y] {
+                    self.pc += 4; // skip
+                } else {
+                    self.pc += 2;
+                }
             }
             0xA000 => {
-                // ANNN: Set I to the address NNN
+                // 0xANNN: Set I to the address NNN
                 let nnn = opcode & 0x0FFF;
                 self.i = nnn;
                 self.pc += 2;
             }
             0xB000 => {
-                todo!()
+                // 0xBNNN: Jumps to address NNN plus V0
+                let nnn = opcode & 0x0FFF;
+                let v0 = self.v[0] as u16;
+                self.pc = v0 + nnn;
             }
             0xC000 => {
-                todo!()
+                // 0xCXNN: Sets VX to the bitwise and operation on an random number and NN
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let nn = (opcode & 0x00FF) as u8;
+                let r = rand::thread_rng().gen_range(1..=255);
+                self.v[x] = r & nn;
+                self.pc += 2;
             }
             0xD000 => {
-                todo!()
+                // 0xDXYN:
+                // Draws a sprite at coordinate (VX, VY)
+                // that has a width of 8 pixels and a height of N pixels.
+                // Each row of 8 pixels is read as bit-coded starting
+                // from memory location I;
+                // I value does not change after the execution of this instruction.
+                // As described above,
+                // VF is set to 1 if any screen pixels are flipped
+                // from set to unset when the sprite is drawn,
+                // and to 0 if that does not happen.
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                let y = ((opcode & 0x00F0) >> 4) as usize;
+                let n = (opcode & 0x000F) as usize;
+                let mut vf = 0;
+                for yline in 0..n {
+                    let pixel = self.memory[self.i as usize + yline];
+                    for xline in 0..8 {
+                        if pixel & (0x80 >> xline) != 0 {
+                            if self.gfx[(y + yline) * GFX_SIZE_COL + x + xline] == 1 {
+                                vf = 1;
+                            }
+                            self.gfx[(y + yline) * GFX_SIZE_COL + x + xline] ^= 1;
+                        }
+                    }
+                }
+                self.v[0xf] = vf;
+                self.draw_flag = true;
+                self.pc += 2;
             }
             0xE000 => {
                 todo!()
