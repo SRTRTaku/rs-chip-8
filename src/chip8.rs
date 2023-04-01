@@ -282,15 +282,17 @@ impl Chip8 {
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let y = ((opcode & 0x00F0) >> 4) as usize;
                 let n = (opcode & 0x000F) as usize;
+                let vx = self.v[x] as usize;
+                let vy = self.v[y] as usize;
                 let mut vf = 0;
                 for yline in 0..n {
                     let pixel = self.memory[self.i as usize + yline];
                     for xline in 0..8 {
                         if pixel & (0x80 >> xline) != 0 {
-                            if self.gfx[(y + yline) * GFX_SIZE_COL + x + xline] == 1 {
+                            if self.gfx[(vy + yline) * GFX_SIZE_COL + vx + xline] == 1 {
                                 vf = 1;
                             }
-                            self.gfx[(y + yline) * GFX_SIZE_COL + x + xline] ^= 1;
+                            self.gfx[(vy + yline) * GFX_SIZE_COL + vx + xline] ^= 1;
                         }
                     }
                 }
@@ -411,9 +413,9 @@ impl Chip8 {
     pub fn draw_graphics(&self) {
         print!("\x1b[2;1H");
         print!("\x1b[0J");
-        for _i in 0..GFX_SIZE_ROW {
-            for _j in 0..GFX_SIZE_COL {
-                let idx = _i * GFX_SIZE_ROW + _j;
+        for x in 0..GFX_SIZE_ROW {
+            for y in 0..GFX_SIZE_COL {
+                let idx = x * GFX_SIZE_COL + y;
                 if self.gfx[idx] == 1 {
                     print!("\x1b[42m"); // green
                     print!("*");
@@ -519,8 +521,8 @@ impl KeyBoard {
 pub fn setup_graphics() {
     print!("\x1b[2J");
     print!("\x1b[2;1H");
-    for _i in 0..GFX_SIZE_ROW {
-        for _j in 0..GFX_SIZE_COL {
+    for _ in 0..GFX_SIZE_ROW {
+        for _ in 0..GFX_SIZE_COL {
             print!(".");
         }
         println!();
