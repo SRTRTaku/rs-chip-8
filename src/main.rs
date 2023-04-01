@@ -1,8 +1,16 @@
 use chip8::{Chip8, KeyBoard};
+use std::env;
 
 mod chip8;
 
 fn main() {
+    // check arg
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        println!("invalid argumnts");
+        return;
+    }
+
     // Set up render system and resiger input callbacks
     //
     // setupGraphics
@@ -12,7 +20,7 @@ fn main() {
 
     // Initialize the Chip8 system and load the game into the memory
     let mut my_chip8 = Chip8::new();
-    if let Err(e) = my_chip8.load_game("MAZE") {
+    if let Err(e) = my_chip8.load_game(&args[1]) {
         println!("erro {}", e);
         return;
     }
