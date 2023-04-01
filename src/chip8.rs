@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 use std::iter::Iterator;
+use std::sync::{Arc, Mutex};
 
 const MEMORY_SIZE: usize = 4096;
 const V_SIZE: usize = 16;
@@ -47,8 +48,9 @@ pub struct Chip8 {
 }
 
 pub struct KeyBoard {
-    g: Getch,
-    key: [u8; KEY_NUM],
+    // g: Getch,
+    pub fin_flag: bool,
+    pub key: [u8; KEY_NUM],
 }
 
 impl Chip8 {
@@ -487,34 +489,43 @@ impl Chip8 {
 impl KeyBoard {
     pub fn new() -> KeyBoard {
         KeyBoard {
-            g: Getch::new(),
+            fin_flag: false,
             key: [0; KEY_NUM],
         }
     }
-    pub fn set_keys(&mut self) -> bool {
-        self.key = [0; KEY_NUM];
-        let mut fin_flag = false;
-        match self.g.getch() {
-            Ok(Key::Char('x')) => self.key[0x0] = 1,
-            Ok(Key::Char('1')) => self.key[0x1] = 1,
-            Ok(Key::Char('2')) => self.key[0x2] = 1,
-            Ok(Key::Char('3')) => self.key[0x3] = 1,
-            Ok(Key::Char('q')) => self.key[0x4] = 1,
-            Ok(Key::Char('w')) => self.key[0x5] = 1,
-            Ok(Key::Char('e')) => self.key[0x6] = 1,
-            Ok(Key::Char('a')) => self.key[0x7] = 1,
-            Ok(Key::Char('s')) => self.key[0x8] = 1,
-            Ok(Key::Char('d')) => self.key[0x9] = 1,
-            Ok(Key::Char('z')) => self.key[0xa] = 1,
-            Ok(Key::Char('c')) => self.key[0xb] = 1,
-            Ok(Key::Char('4')) => self.key[0xc] = 1,
-            Ok(Key::Char('r')) => self.key[0xd] = 1,
-            Ok(Key::Char('f')) => self.key[0xe] = 1,
-            Ok(Key::Char('v')) => self.key[0xf] = 1,
-            Ok(Key::Char(' ')) => (),
-            _ => fin_flag = true,
+}
+
+pub fn set_keys(kb: Arc<Mutex<KeyBoard>>) {
+    let g = Getch::new();
+    loop {
+        let key = g.getch();
+        {
+            let mut key_board = kb.lock().unwrap();
+            key_board.key = [0; KEY_NUM];
+            match key {
+                Ok(Key::Char('x')) => key_board.key[0x0] = 1,
+                Ok(Key::Char('1')) => key_board.key[0x1] = 1,
+                Ok(Key::Char('2')) => key_board.key[0x2] = 1,
+                Ok(Key::Char('3')) => key_board.key[0x3] = 1,
+                Ok(Key::Char('q')) => key_board.key[0x4] = 1,
+                Ok(Key::Char('w')) => key_board.key[0x5] = 1,
+                Ok(Key::Char('e')) => key_board.key[0x6] = 1,
+                Ok(Key::Char('a')) => key_board.key[0x7] = 1,
+                Ok(Key::Char('s')) => key_board.key[0x8] = 1,
+                Ok(Key::Char('d')) => key_board.key[0x9] = 1,
+                Ok(Key::Char('z')) => key_board.key[0xa] = 1,
+                Ok(Key::Char('c')) => key_board.key[0xb] = 1,
+                Ok(Key::Char('4')) => key_board.key[0xc] = 1,
+                Ok(Key::Char('r')) => key_board.key[0xd] = 1,
+                Ok(Key::Char('f')) => key_board.key[0xe] = 1,
+                Ok(Key::Char('v')) => key_board.key[0xf] = 1,
+                Ok(Key::Char(' ')) => {
+                    key_board.fin_flag = true;
+                    break;
+                }
+                _ => (),
+            }
         }
-        fin_flag
     }
 }
 
