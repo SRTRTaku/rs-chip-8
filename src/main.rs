@@ -12,7 +12,7 @@ fn main() {
 
     // Initialize the Chip8 system and load the game into the memory
     let mut my_chip8 = Chip8::new();
-    if let Err(e) = my_chip8.load_game("PONG") {
+    if let Err(e) = my_chip8.load_game("MAZE") {
         println!("erro {}", e);
         return;
     }
@@ -23,7 +23,6 @@ fn main() {
         count += 1;
         // Emulate one cycle
         my_chip8.emulate_cycle(&kb);
-        // my_chip8.dump();
 
         // If the draw flag is set, update the screen
         if my_chip8.draw_flag() {
@@ -39,5 +38,11 @@ fn main() {
         print!("\x1b[1;1H");
         print!("\x1b[2K");
         println!("{}", count);
+
+        print!("\x1b[34;1H");
+        print!("\x1b[0J");
+        my_chip8.dump();
     }
+    print!("\x1b[1;1H");
+    print!("\x1b[2J");
 }

@@ -123,9 +123,7 @@ impl Chip8 {
                     // update
                     self.pc = pc
                 }
-                _ => {
-                    return Err(format!("unknown opcode(0x0000): 0x{:x}", opcode));
-                }
+                _ => return Err(format!("unknown opcode(0x0000): 0x{:x}", opcode)),
             },
             0x1000 => {
                 // 0x1NNN: Jumps to address NNN
@@ -233,10 +231,8 @@ impl Chip8 {
                         self.v[0xf] = (self.v[x] & 0x80) >> 7;
                         self.v[x] <<= 1;
                     }
-                    _ => {
-                        return Err(format!("unknown opcode(0x8000): 0x{:x}", opcode));
-                    }
-                };
+                    _ => return Err(format!("unknown opcode(0x8000): 0x{:x}", opcode)),
+                }
                 self.pc += 2;
             }
             0x9000 => {
@@ -323,18 +319,86 @@ impl Chip8 {
                             self.pc += 2;
                         }
                     }
-                    _ => {
-                        return Err(format!("unknown opcode(0x9000): 0x{:x}", opcode));
-                    }
+                    _ => return Err(format!("unknown opcode(0xE000): 0x{:x}", opcode)),
                 }
             }
             0xF000 => {
-                todo!()
+                let x = ((opcode & 0x0F00) >> 8) as usize;
+                match opcode & 0x00FF {
+                    0x0007 => {
+                        // 0xFX07: Sets VX to the value of the delay timer
+                        self.v[x] = self.delay_timer;
+                        self.pc += 2;
+                    }
+                    0x000A => {
+                        // 0xFX0A: A key press is awaited, and then stored in VX
+                        for k in 0..KEY_NUM {
+                            if kb.key[k] != 0 {
+                                self.v[x] = k as u8;
+                                self.pc += 2;
+                                break;
+                            }
+                        }
+                    }
+                    0x0015 => {
+                        // 0xFX15: Set delay timer to VX
+                        self.delay_timer = self.v[x];
+                        self.pc += 2;
+                    }
+                    0x0018 => {
+                        // 0xFX18: Set sound timer to VX
+                        self.sound_timer = self.v[x];
+                        self.pc += 2;
+                    }
+                    0x001E => {
+                        // 0xFX1E: Adds VX to I
+                        self.i += self.v[x] as u16;
+                        self.pc += 2;
+                    }
+                    0x0029 => {
+                        // 0xFX29: Sets I to the location of the sprite for the character in VX
+                        let c = self.v[x];
+                        if c > 0xf {
+                            return Err(format!("0xFX29 invalid character: {:x}", c));
+                        }
+                        self.i = (c as u16) * 5;
+                        self.pc += 2;
+                    }
+                    0x0033 => {
+                        // 0xFX33:
+                        // Stores the binary-coded decimal representation of VX,
+                        // with the hundreds digit in memory at location in I,
+                        // the tens digit at location I+1, and the ones digit at location I+2.
+                        let vx = self.v[x];
+                        let i = self.i as usize;
+                        self.memory[i] = vx / 100;
+                        self.memory[i + 1] = (vx / 10) % 10;
+                        self.memory[i + 2] = vx % 10;
+                        self.pc += 2;
+                    }
+                    0x0055 => {
+                        // 0xFX55:
+                        // Stores from V0 to VX (including VX) in memory, starting at address I.
+                        // The offset from I is increased by 1 for each value written, but I itself is left unmodified.
+                        for j in 0..=x {
+                            self.memory[self.i as usize + j] = self.v[j];
+                        }
+                        self.pc += 2;
+                    }
+                    0x0065 => {
+                        // 0xFX65:
+                        // Fills from V0 to VX (including VX) with values from memory, starting at address I.
+                        // The offset from I is increased by 1 for each value read, but I itself is left unmodified.
+                        for j in 0..=x {
+                            self.v[j] = self.memory[self.i as usize + j];
+                        }
+                        self.pc += 2;
+                    }
+                    _ => return Err(format!("unknown opcode(0xF000): 0x{:x}", opcode)),
+                }
             }
-            _ => {
-                return Err(format!("unknown opcode: 0x{:x}", opcode));
-            }
-        };
+            _ => return Err(format!("unknown opcode: 0x{:x}", opcode)),
+        }
         Ok(())
     }
 
@@ -364,8 +428,8 @@ impl Chip8 {
 
     pub fn dump(&self) {
         println!("memory:");
-        let begin = 0x100;
-        let end = 0x400;
+        let begin = 0x200;
+        let end = 0x250;
         // print header
         print!("    |");
         for i in 0..16 {
