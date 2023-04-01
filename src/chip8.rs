@@ -122,7 +122,7 @@ impl Chip8 {
                     self.sp -= 1;
                     let pc = self.stack[self.sp as usize];
                     // update
-                    self.pc = pc
+                    self.pc = pc + 2;
                 }
                 _ => return Err(format!("unknown opcode(0x0000): 0x{:x}", opcode)),
             },
@@ -184,7 +184,9 @@ impl Chip8 {
                 // 0x7XNN: Adds NN to VX
                 let x = ((opcode & 0x0F00) >> 8) as usize;
                 let nn = (opcode & 0x00FF) as u8;
-                self.v[x] += nn;
+                let (ans, _) = self.v[x].overflowing_add(nn);
+
+                self.v[x] = ans;
                 self.pc += 2;
             }
             0x8000 => {
@@ -569,7 +571,7 @@ mod tests {
 
         chip8.decode_execute(opcode, &k).unwrap();
         assert_eq!(15, chip8.sp);
-        assert_eq!(0x300, chip8.pc);
+        assert_eq!(0x302, chip8.pc);
     }
 
     #[test]
@@ -656,11 +658,16 @@ mod tests {
         let mut chip8 = Chip8::new();
         let k = KeyBoard::new();
         let opcode = 0x7123;
-        chip8.v[1] = 0x45;
 
+        chip8.v[1] = 0x45;
         chip8.decode_execute(opcode, &k).unwrap();
         assert_eq!(0x45 + 0x23, chip8.v[1]);
         assert_eq!(0x202, chip8.pc);
+
+        chip8.v[1] = 0xff;
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x22, chip8.v[1]);
+        assert_eq!(0x204, chip8.pc);
     }
 
     #[test]
