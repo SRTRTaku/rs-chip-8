@@ -30,7 +30,7 @@ fn main() {
     // Initialize the Chip8 system and load the game into the memory
     let mut my_chip8 = Chip8::new();
     if let Err(e) = my_chip8.load_game(&args[1]) {
-        println!("erro {}", e);
+        println!("error {}", e);
         return;
     }
     // my_chip8.dump();
