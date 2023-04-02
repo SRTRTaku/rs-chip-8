@@ -295,10 +295,13 @@ impl Chip8 {
                     let pixel = self.memory[self.i as usize + yline];
                     for xline in 0..8 {
                         if pixel & (0x80 >> xline) != 0 {
-                            if self.gfx[(vy + yline) * GFX_SIZE_COL + vx + xline] == 1 {
+                            let index_x = (vx + xline) % GFX_SIZE_COL;
+                            let index_y = (vy + yline) % GFX_SIZE_ROW;
+                            let index = index_y * GFX_SIZE_COL + index_x;
+                            if self.gfx[index] == 1 {
                                 vf = 1;
                             }
-                            self.gfx[(vy + yline) * GFX_SIZE_COL + vx + xline] ^= 1;
+                            self.gfx[index] ^= 1;
                         }
                     }
                 }
@@ -838,6 +841,60 @@ mod tests {
         chip8.decode_execute(opcode, &k).unwrap();
         assert_eq!(0x206, chip8.pc);
     }
+
+    #[test]
+    fn decode_execute_annn() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xa123;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x123, chip8.i);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_bnnn() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xb123;
+        chip8.v[0] = 0x45;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x0045 + 0x0123, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_cxnn() {
+        let k = KeyBoard::new();
+
+        let opcode = 0xcd00;
+        for _ in 0..10 {
+            let mut chip8 = Chip8::new();
+            chip8.decode_execute(opcode, &k).unwrap();
+            println!("{}", chip8.v[0xd]);
+            assert_eq!(0x00, chip8.v[0xd]);
+            assert_eq!(0x202, chip8.pc);
+        }
+
+        let opcode = 0xcd0f;
+        for _ in 0..10 {
+            let mut chip8 = Chip8::new();
+            chip8.decode_execute(opcode, &k).unwrap();
+            println!("{}", chip8.v[0xd]);
+            assert!(chip8.v[0xd] <= 0x0f);
+            assert_eq!(0x202, chip8.pc);
+        }
+
+        let opcode = 0xcdff;
+        for _ in 0..10 {
+            let mut chip8 = Chip8::new();
+            chip8.decode_execute(opcode, &k).unwrap();
+            println!("{}", chip8.v[0xd]);
+            assert_eq!(0x202, chip8.pc);
+        }
+    }
+
     /*
     #[test]
     fn decode_execute_xxxx() {
