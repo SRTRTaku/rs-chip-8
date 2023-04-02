@@ -895,6 +895,80 @@ mod tests {
         }
     }
 
+    #[test]
+    fn decode_execute_dxyn() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xd125;
+        chip8.v[1] = 0x01;
+        chip8.v[2] = 0x02;
+        chip8.i = 0x8 * 5;
+        for y in 0..10 {
+            for x in 3..10 {
+                chip8.gfx[y * GFX_SIZE_COL + x] = 1;
+            }
+        }
+        let mut des = chip8.gfx.clone();
+        des[2 * GFX_SIZE_COL + 1] = 1;
+        des[2 * GFX_SIZE_COL + 2] = 1;
+        des[2 * GFX_SIZE_COL + 3] = 0;
+        des[2 * GFX_SIZE_COL + 4] = 0;
+        //
+        des[3 * GFX_SIZE_COL + 1] = 1;
+        des[3 * GFX_SIZE_COL + 4] = 0;
+        //
+        des[4 * GFX_SIZE_COL + 1] = 1;
+        des[4 * GFX_SIZE_COL + 2] = 1;
+        des[4 * GFX_SIZE_COL + 3] = 0;
+        des[4 * GFX_SIZE_COL + 4] = 0;
+        //
+        des[5 * GFX_SIZE_COL + 1] = 1;
+        des[5 * GFX_SIZE_COL + 4] = 0;
+        //
+        des[6 * GFX_SIZE_COL + 1] = 1;
+        des[6 * GFX_SIZE_COL + 2] = 1;
+        des[6 * GFX_SIZE_COL + 3] = 0;
+        des[6 * GFX_SIZE_COL + 4] = 0;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(des, chip8.gfx);
+        assert_eq!(0x202, chip8.pc);
+        for y in 0..10 {
+            let begin = y * GFX_SIZE_COL;
+            println!("{:?}", &chip8.gfx[begin..(begin + 10)]);
+        }
+    }
+
+    #[test]
+    fn decode_execute_ex9e() {
+        let mut chip8 = Chip8::new();
+        let mut k = KeyBoard::new();
+        let opcode = 0xe19e;
+        chip8.v[1] = 0x0f;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x202, chip8.pc);
+
+        k.key[0xf] = 1;
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x206, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_exa1() {
+        let mut chip8 = Chip8::new();
+        let mut k = KeyBoard::new();
+        let opcode = 0xe1a1;
+        chip8.v[1] = 0x0f;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x204, chip8.pc);
+
+        k.key[0xf] = 1;
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x206, chip8.pc);
+    }
+
     /*
     #[test]
     fn decode_execute_xxxx() {
