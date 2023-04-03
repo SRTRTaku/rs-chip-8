@@ -969,15 +969,131 @@ mod tests {
         assert_eq!(0x206, chip8.pc);
     }
 
-    /*
     #[test]
-    fn decode_execute_xxxx() {
+    fn decode_execute_fx07() {
         let mut chip8 = Chip8::new();
         let k = KeyBoard::new();
-        let opcode = 0x0000;
+        let opcode = 0xf107;
+        chip8.delay_timer = 0x12;
 
         chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x12, chip8.v[1]);
         assert_eq!(0x202, chip8.pc);
     }
-    */
+
+    #[test]
+    fn decode_execute_fx0a() {
+        let mut chip8 = Chip8::new();
+        let mut k = KeyBoard::new();
+        let opcode = 0xf10a;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x00, chip8.v[1]);
+        assert_eq!(0x200, chip8.pc);
+
+        k.key[0x8] = 1;
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x08, chip8.v[1]);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx15() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf115;
+        chip8.v[1] = 0x12;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x12, chip8.delay_timer);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx18() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf218;
+        chip8.v[2] = 0x34;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x34, chip8.sound_timer);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx1e() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf31e;
+        chip8.i = 0x12;
+        chip8.v[3] = 0x34;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0x0012 + 0x0034, chip8.i);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx29() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf429;
+        chip8.v[4] = 0x0f;
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(0xf * 5, chip8.i);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx33() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf533;
+        chip8.i = 0x300;
+        chip8.v[5] = 0x80; // 128
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        assert_eq!(1, chip8.memory[0x300]);
+        assert_eq!(2, chip8.memory[0x301]);
+        assert_eq!(8, chip8.memory[0x302]);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx55() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf655;
+        chip8.i = 0x300;
+        for i in 0..=6 {
+            chip8.v[i] = i as u8;
+        }
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        for i in 0..=6 {
+            assert_eq!(i as u8, chip8.memory[0x300 + i]);
+        }
+        assert_eq!(0x300, chip8.i);
+        assert_eq!(0x202, chip8.pc);
+    }
+
+    #[test]
+    fn decode_execute_fx65() {
+        let mut chip8 = Chip8::new();
+        let k = KeyBoard::new();
+        let opcode = 0xf665;
+        chip8.i = 0x300;
+        for i in 0..=6 {
+            chip8.memory[0x300 + i] = i as u8;
+        }
+
+        chip8.decode_execute(opcode, &k).unwrap();
+        for i in 0..=6 {
+            assert_eq!(i as u8, chip8.v[i]);
+        }
+        assert_eq!(0x300, chip8.i);
+        assert_eq!(0x202, chip8.pc);
+    }
 }
