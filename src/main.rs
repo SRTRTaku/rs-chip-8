@@ -1,10 +1,11 @@
-use chip8::{set_keys, setup_graphics, Chip8, KeyBoard};
+use chip8::{Chip8, KeyBoard};
+use io::IO;
 use std::env;
-use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 mod chip8;
+mod io;
 
 fn main() {
     // check arg
@@ -15,17 +16,8 @@ fn main() {
     }
 
     // Set up render system and resiger input callbacks
-    //
-    // setupGraphics
-    // setupInput
-    setup_graphics();
-    let kb = Arc::new(Mutex::new(KeyBoard::new()));
-
-    let kb1 = Arc::clone(&kb);
-    thread::spawn(move || {
-        // Store kye press state (Press and Release)
-        set_keys(kb1);
-    });
+    let mut io = IO::setup();
+    let mut key_board = KeyBoard::new();
 
     // Initialize the Chip8 system and load the game into the memory
     let mut my_chip8 = Chip8::new();
@@ -34,36 +26,28 @@ fn main() {
         return;
     }
     // my_chip8.dump();
-
-    let mut count = 0;
+    let d = Duration::from_nanos(1_000_000_000 / 60);
     loop {
-        count += 1;
+        let s = Instant::now();
+
         // Emulate one cycle
-        {
-            let key_board = kb.lock().unwrap();
-            if key_board.fin_flag {
-                break;
-            }
-            my_chip8.emulate_cycle(&key_board);
-        }
+        my_chip8.emulate_cycle(&key_board);
 
         // If the draw flag is set, update the screen
         if my_chip8.draw_flag() {
-            my_chip8.draw_graphics();
+            io.draw_graphics(&my_chip8);
         }
 
-        print!("\x1b[1;1H");
-        print!("\x1b[2K");
-        println!("{}", count);
+        io.set_key(&mut key_board);
+        if key_board.fin_flag {
+            break;
+        }
 
-        // print!("\x1b[34;1H");
-        // print!("\x1b[0J");
-        // my_chip8.dump();
-
-        thread::sleep(Duration::from_millis(17)); // 60 Hz
+        let prog = Instant::now() - s;
+        if prog < d {
+            thread::sleep(d - prog); // 60 Hz
+        } else {
+            println!("{:?}", prog);
+        }
     }
-
-    // Cleanup
-    print!("\x1b[1;1H");
-    print!("\x1b[2J");
 }

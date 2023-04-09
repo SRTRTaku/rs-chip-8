@@ -1,19 +1,17 @@
-use getch_rs::{Getch, Key};
 use rand::Rng;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
 use std::iter::Iterator;
-use std::sync::{Arc, Mutex};
 
 const MEMORY_SIZE: usize = 4096;
 const V_SIZE: usize = 16;
-const GFX_SIZE_COL: usize = 64;
-const GFX_SIZE_ROW: usize = 32;
-const GFX_SIZE: usize = GFX_SIZE_COL * GFX_SIZE_ROW;
+pub const GFX_SIZE_COL: usize = 64;
+pub const GFX_SIZE_ROW: usize = 32;
+pub const GFX_SIZE: usize = GFX_SIZE_COL * GFX_SIZE_ROW;
 const STACK_SIZE: usize = 16;
-const KEY_NUM: usize = 16;
+pub const KEY_NUM: usize = 16;
 
 const CHIP8_FONTSET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -39,7 +37,7 @@ pub struct Chip8 {
     v: [u8; V_SIZE],
     i: u16,
     pc: u16,
-    gfx: [u8; GFX_SIZE],
+    pub gfx: [u8; GFX_SIZE],
     delay_timer: u8,
     sound_timer: u8,
     stack: [u16; STACK_SIZE],
@@ -419,24 +417,6 @@ impl Chip8 {
         f
     }
 
-    pub fn draw_graphics(&self) {
-        print!("\x1b[2;1H");
-        print!("\x1b[0J");
-        for x in 0..GFX_SIZE_ROW {
-            for y in 0..GFX_SIZE_COL {
-                let idx = x * GFX_SIZE_COL + y;
-                if self.gfx[idx] == 1 {
-                    print!("\x1b[42m"); // green
-                    print!("*");
-                    print!("\x1b[0m"); // reset
-                } else {
-                    print!(".");
-                }
-            }
-            println!();
-        }
-    }
-
     pub fn dump(&self) {
         println!("memory:");
         let begin = 0x200;
@@ -499,51 +479,6 @@ impl KeyBoard {
             fin_flag: false,
             key: [0; KEY_NUM],
         }
-    }
-}
-
-pub fn set_keys(kb: Arc<Mutex<KeyBoard>>) {
-    let g = Getch::new();
-    loop {
-        let key = g.getch();
-        {
-            let mut key_board = kb.lock().unwrap();
-            key_board.key = [0; KEY_NUM];
-            match key {
-                Ok(Key::Char('x')) => key_board.key[0x0] = 1,
-                Ok(Key::Char('1')) => key_board.key[0x1] = 1,
-                Ok(Key::Char('2')) => key_board.key[0x2] = 1,
-                Ok(Key::Char('3')) => key_board.key[0x3] = 1,
-                Ok(Key::Char('q')) => key_board.key[0x4] = 1,
-                Ok(Key::Char('w')) => key_board.key[0x5] = 1,
-                Ok(Key::Char('e')) => key_board.key[0x6] = 1,
-                Ok(Key::Char('a')) => key_board.key[0x7] = 1,
-                Ok(Key::Char('s')) => key_board.key[0x8] = 1,
-                Ok(Key::Char('d')) => key_board.key[0x9] = 1,
-                Ok(Key::Char('z')) => key_board.key[0xa] = 1,
-                Ok(Key::Char('c')) => key_board.key[0xb] = 1,
-                Ok(Key::Char('4')) => key_board.key[0xc] = 1,
-                Ok(Key::Char('r')) => key_board.key[0xd] = 1,
-                Ok(Key::Char('f')) => key_board.key[0xe] = 1,
-                Ok(Key::Char('v')) => key_board.key[0xf] = 1,
-                Ok(Key::Char(' ')) => {
-                    key_board.fin_flag = true;
-                    break;
-                }
-                _ => (),
-            }
-        }
-    }
-}
-
-pub fn setup_graphics() {
-    print!("\x1b[2J");
-    print!("\x1b[2;1H");
-    for _ in 0..GFX_SIZE_ROW {
-        for _ in 0..GFX_SIZE_COL {
-            print!(".");
-        }
-        println!();
     }
 }
 
